@@ -42,7 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function openHTML(files, htmlFile) {
-        const newWindow = window.open();
         const fileURLs = {};
 
         // Crear URLs temporales para cada archivo
@@ -56,18 +55,44 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = function () {
             let htmlContent = reader.result;
 
-            // Modificar rutas en el HTML para CSS, JS, imágenes y otros recursos
-            htmlContent = htmlContent.replace(/(href|src)="([^"]+)"/g, (match, attr, path) => {
+            // Crear nueva ventana y document
+            const newWindow = window.open();
+            const newDoc = newWindow.document;
+            newDoc.open();
+            newDoc.write('<!DOCTYPE html><html><head></head><body></body></html>');
+            newDoc.close();
+
+            // Extraer el contenido del HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+
+            // Reemplazar rutas en el HTML con URLs temporales
+            tempDiv.querySelectorAll('link[rel="stylesheet"], script, img, video, audio, source').forEach(element => {
+                let attr = element.tagName === 'LINK' ? 'href' : 'src';
+                let path = element.getAttribute(attr);
                 if (fileURLs[path]) {
-                    return `${attr}="${fileURLs[path]}"`;
+                    element.setAttribute(attr, fileURLs[path]);
                 }
-                return match;
             });
 
-            // Escribir el HTML modificado en la nueva ventana
-            newWindow.document.open();
-            newWindow.document.write(htmlContent);
-            newWindow.document.close();
+            // Agregar estilos CSS al <head> de la nueva ventana
+            tempDiv.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+                let newLink = newDoc.createElement('link');
+                newLink.rel = 'stylesheet';
+                newLink.href = link.href;
+                newDoc.head.appendChild(newLink);
+            });
+
+            // Agregar scripts JS al <body> de la nueva ventana
+            tempDiv.querySelectorAll('script').forEach(script => {
+                let newScript = newDoc.createElement('script');
+                newScript.src = script.src;
+                newScript.async = false;
+                newDoc.body.appendChild(newScript);
+            });
+
+            // Insertar el contenido del HTML en la nueva ventana
+            newDoc.body.innerHTML = tempDiv.innerHTML;
         };
     }
 });
